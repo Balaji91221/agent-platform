@@ -1,5 +1,6 @@
-# Postgres + Redis for a production-shaped local stack.
-# The backend also runs with neither: SQLite + in-process queues.
+# Postgres + Redis for a production-shaped local stack, plus Jenkins for the
+# agent create / deploy / delete jobs.
+# The backend also runs with neither DB service: SQLite + in-process queues.
 services:
   postgres:
     image: postgres:16
@@ -14,5 +15,28 @@ services:
     image: redis:7
     ports: ["6379:6379"]
 
+  jenkins:
+    build: ./jenkins
+    image: relay-jenkins:local
+    # 8080 and 8081 are commonly taken by other local stacks; 8090 is ours.
+    ports: ["8090:8080", "50000:50000"]
+    environment:
+      JENKINS_ADMIN_ID: ${JENKINS_USER:-relay}
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_PASSWORD:-relay}
+      JENKINS_URL: ${JENKINS_URL:-http://localhost:8090/}
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./jenkins/casc.yaml:/var/jenkins_conf/casc.yaml:ro
+      # The file the jobs write host entries into. A bind mount, so the result
+      # is visible on the host and survives the container.
+      - ./jenkins/hosts:/opt/relay/hosts
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
 volumes:
   pgdata:
+  jenkins_home:

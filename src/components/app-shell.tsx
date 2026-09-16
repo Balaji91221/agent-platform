@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { Screen } from '@/components/screen';
 import { Sidebar } from '@/components/sidebar';
 import { Topbar } from '@/components/topbar';
+import { Offline } from '@/components/offline';
 import { useAuth } from '@/lib/auth';
 import { TeamProvider } from '@/lib/team-store';
 
@@ -16,6 +17,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (pathname === '/login') {
     return <Screen>{children}</Screen>;
+  }
+  if (state.kind === 'offline') {
+    return (
+      <Screen>
+        <Offline message={state.message} />
+      </Screen>
+    );
   }
   if (state.kind !== 'signed-in') {
     // Nothing to show yet: avoid a flash of the workspace before the redirect.

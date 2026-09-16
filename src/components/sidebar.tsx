@@ -59,9 +59,15 @@ export function Sidebar() {
       <nav className="nav">
         <span className="lbl">Workspace</span>
         {NAV.map(({ href, label, Icon }) => (
-          <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>
+          <Link
+            key={href}
+            href={href}
+            aria-current={pathname === href ? 'page' : undefined}
+            aria-label={label}
+            title={label}
+          >
             <Icon />
-            {label}
+            <span className="nav-t">{label}</span>
           </Link>
         ))}
       </nav>

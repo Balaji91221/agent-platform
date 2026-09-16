@@ -8,12 +8,25 @@ from app.config import settings
 from app.db import get_session
 from app.dependencies.auth import get_current_user
 from app.exceptions.errors import ConflictException, LimitReachedException, ValidationException
+from app.a2a import card as a2a_card
+from app.a2a import tokens as a2a_tokens
+from app.cicd import jenkins
 from app.connectors import registry
 from app.mcp.cache import qualified_names
 from app.models import Agent, AgentTool, McpServer, Run, RunLog, Schedule, Team, Teammate, User
 from app.runtime.runs import enqueue_run
 from app.scheduler.cron import describe, next_due, preview, validate_cron, zone
-from app.schemas.agent import AgentCreate, AgentOut, AgentUpdate, RunOut, ScheduleOut, ToolGrant
+from app.schemas.agent import (
+    A2AOut,
+    AgentCreate,
+    AgentOut,
+    AgentUpdate,
+    DeploymentOut,
+    JobRunOut,
+    RunOut,
+    ScheduleOut,
+    ToolGrant,
+)
 from app.security.ownership import get_owned_agent, owned
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
@@ -49,6 +62,24 @@ async def _shape(session: AsyncSession, agent: Agent) -> AgentOut:
         created_at=agent.created_at,
         tools=[ToolGrant(tool_name=t.tool_name, can_write=t.can_write) for t in tools],
         schedule=schedule_out,
+    )
+
+
+def _deployment(agent: Agent, runs: list[jenkins.JobRun]) -> DeploymentOut:
+    slug = jenkins.agent_slug(agent.id, agent.name)
+    return DeploymentOut(
+        agent_id=agent.id,
+        slug=slug,
+        host_entry=jenkins.host_entry(slug),
+        hosts_file=settings.AGENT_HOSTS_FILE,
+        enabled=settings.JENKINS_ENABLED,
+        jobs=[JobRunOut(**vars(r)) for r in runs],
+        a2a=A2AOut(
+            enabled=settings.A2A_ENABLED,
+            card_url=a2a_card.card_url(agent.id),
+            endpoint_url=a2a_card.endpoint_url(agent.id),
+            token=a2a_tokens.issue(agent.id),
+        ),
     )
 
 
@@ -157,6 +188,10 @@ async def create_agent(
     if payload.schedule:
         await _apply_schedule(session, agent.id, payload.schedule)
 
+    # Provision CI and the host entry. A Jenkins outage must not undo an agent
+    # the user has already been told about, so the result is logged, not raised.
+    await jenkins.trigger(settings.JENKINS_CREATE_JOB, agent.id, agent.name)
+
     return await _shape(session, agent)
 
 
@@ -212,6 +247,10 @@ async def delete_agent(
     agent = await get_owned_agent(session, agent_id, user.id)
     if agent.is_running:
         raise ConflictException("This agent is running. Wait for it to finish, then delete it.")
+
+    # Tear the host entry down while the agent still exists — the job needs its
+    # name to build the slug.
+    await jenkins.trigger(settings.JENKINS_DELETE_JOB, agent.id, agent.name)
 
     # Everything that references the agent goes first, or Postgres refuses.
     run_ids = select(Run.id).where(Run.agent_id == agent.id)
@@ -299,3 +338,26 @@ async def agent_runs(
         )
     ).scalars().all()
     return list(rows)
+
+
+@router.post("/{agent_id}/deploy", response_model=DeploymentOut)
+async def deploy_agent(
+    agent_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Run the deploy job. Returns as soon as the build has a number."""
+    agent = await get_owned_agent(session, agent_id, user.id)
+    run = await jenkins.trigger(settings.JENKINS_DEPLOY_JOB, agent.id, agent.name, wait=True)
+    return _deployment(agent, [run])
+
+
+@router.get("/{agent_id}/deployment", response_model=DeploymentOut)
+async def agent_deployment(
+    agent_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """The host entry plus the latest build of each of the three jobs."""
+    agent = await get_owned_agent(session, agent_id, user.id)
+    return _deployment(agent, await jenkins.jobs_for_agent(agent.id))

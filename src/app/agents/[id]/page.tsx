@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Fragment, Suspense, useCallback, useState } from 'react';
 import { InfoIcon, PlayIcon } from '@/components/icons';
+import { DeploymentCard } from '@/components/agents/deployment-card';
 import { MarkdownLite } from '@/components/markdown-lite';
 import { LiveLog } from '@/components/runs/live-log';
 import { Empty, Loaded, Problem } from '@/components/states';
@@ -185,6 +186,8 @@ function AgentDetail() {
                 </div>
               </div>
 
+              <DeploymentCard agentId={agentId} />
+
               <div className="card">
                 <CardHead
                   title="Run history"
@@ -237,7 +240,7 @@ function AgentDetail() {
                 />
                 {selected && (selected.output || selected.error) ? (
                   <div className={`result${selected.status === 'failed' ? ' failed' : ''}`}>
-                    <b>{selected.status === 'failed' ? 'What went wrong' : 'Result'}</b>
+                    <b className="rlabel">{selected.status === 'failed' ? 'What went wrong' : 'Result'}</b>
                     {selected.status === 'failed' ? (
                       <p>{selected.error}</p>
                     ) : (

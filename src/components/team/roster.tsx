@@ -166,7 +166,7 @@ export function Roster({ onMention }: { onMention: (name: string) => void }) {
                           <button onClick={() => void makeLead(mate.id)}>Make lead</button>
                         )}
                         <button onClick={() => startEdit(mate)}>Edit</button>
-                        <Link href={`/agents/${mate.agent_id}`}>Open agent</Link>
+                        <Link href={`/agents/${mate.agent_id}`}>Open</Link>
                         <button className="danger" onClick={() => void remove(mate.id)}>
                           Remove
                         </button>

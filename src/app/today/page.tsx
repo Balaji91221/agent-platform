@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { BusiestAgents, OutcomeRing, RunsPerHourChart } from '@/components/today/charts';
 import { Tiles } from '@/components/today/tiles';
 import { AlertCircleIcon, RefreshIcon, TokenIcon } from '@/components/icons';
+import { plainPreview } from '@/components/markdown-lite';
 import { Empty, Loaded } from '@/components/states';
 import { CardHead, PageHead, Segmented } from '@/components/ui';
 import { getStats, listAgents, listNotifications, notificationHref } from '@/lib/api/endpoints';
@@ -114,7 +115,7 @@ export default function TodayPage() {
                   </span>
                   <span className="a-txt">
                     <b>{n.title}</b>
-                    <p>{n.body}</p>
+                    <p>{plainPreview(n.body)}</p>
                   </span>
                   <Link className="btn sec sm" href={notificationHref(n)}>
                     {n.agent_id === null || n.agent_id === undefined ? 'View' : 'Open run'}

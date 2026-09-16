@@ -1,0 +1,6 @@
+# Relay agent host entries. Written by the Jenkins agent-create / agent-deploy
+# jobs, removed by agent-delete. Bind-mounted into Jenkins at /opt/relay/hosts.
+#
+# A container's own /etc/hosts is Docker-managed and regenerated on restart, so
+# entries are kept here instead. To write a real machine's file, run the job
+# with HOSTS_FILE=/etc/hosts against an agent that has write access to it.

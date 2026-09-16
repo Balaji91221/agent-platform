@@ -158,6 +158,39 @@ class Settings(BaseSettings):
     NOTIFY_QUEUE: str = "agent_platform:notifications"
     RUN_CHANNEL_PREFIX: str = "agent_platform:run:"
 
+    # --- Jenkins CI ----------------------------------------------------------
+    # Off by default, like MODEL_PROVIDER="fake": agent create and delete must
+    # keep working when Jenkins is down or absent.
+    JENKINS_ENABLED: bool = False
+    JENKINS_URL: str = "http://localhost:8090"
+    JENKINS_USER: str = "relay"
+    JENKINS_PASSWORD: str = "relay"
+    JENKINS_TIMEOUT_SECONDS: float = 10.0
+
+    # The three jobs defined in jenkins/casc.yaml.
+    JENKINS_CREATE_JOB: str = "agent-create"
+    JENKINS_DEPLOY_JOB: str = "agent-deploy"
+    JENKINS_DELETE_JOB: str = "agent-delete"
+
+    # A host entry is one line: "<AGENT_HOST_IP>\t<slug>.<AGENT_HOST_DOMAIN>".
+    AGENT_HOST_DOMAIN: str = "relay.local"
+    AGENT_HOST_IP: str = "127.0.0.1"
+    # The file the jobs edit. Inside the Jenkins container this is a bind mount;
+    # a container's own /etc/hosts is Docker-managed and reset on restart.
+    AGENT_HOSTS_FILE: str = "/opt/relay/hosts"
+
+    # --- A2A (Agent2Agent) --------------------------------------------------
+    # Publishes every agent as an A2A agent: a card at
+    # /a2a/agents/{id}/.well-known/agent-card.json and a JSON-RPC SendMessage
+    # endpoint. Off by default — turning it on exposes agents, and their tools,
+    # to anything that holds the agent's token.
+    A2A_ENABLED: bool = False
+    # The absolute origin outside callers reach this backend on. The spec
+    # requires the card's interface URLs to be absolute.
+    A2A_PUBLIC_URL: str = "http://localhost:8000"
+    # Spec version implemented: v1.0 (SendMessage, ROLE_USER, TASK_STATE_*).
+    A2A_PROTOCOL_VERSION: str = "1.0"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

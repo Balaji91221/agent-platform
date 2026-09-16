@@ -1,0 +1,103 @@
+# Jenkins Configuration as Code. Everything Jenkins knows is in this file, so a
+# `docker compose down -v` loses nothing that is not committed here.
+jenkins:
+  systemMessage: "Relay agent platform — create / deploy / delete jobs."
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID:-relay}"
+          password: "${JENKINS_ADMIN_PASSWORD:-relay}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    # The URL the backend and the browser use to reach a build page.
+    url: "${JENKINS_URL:-http://localhost:8090/}"
+
+jobs:
+  - script: |
+      def hostsParams = {
+        stringParam('AGENT_ID', '', 'Relay agent id')
+        stringParam('AGENT_SLUG', '', 'Hostname label, e.g. daily-digest')
+        stringParam('AGENT_NAME', '', 'Human name, for the log')
+        stringParam('HOST_IP', '127.0.0.1', 'IP the host entry points at')
+        stringParam('HOST_DOMAIN', 'relay.local', 'Suffix for the host entry')
+        stringParam('HOSTS_FILE', '/opt/relay/hosts', 'File the entry is written to')
+      }
+
+      job('agent-create') {
+        description('Provisions a new Relay agent and writes its host entry.')
+        parameters(hostsParams)
+        logRotator { numToKeep(50) }
+        steps {
+          shell('''#!/bin/bash
+      set -euo pipefail
+      FQDN="$AGENT_SLUG.$HOST_DOMAIN"
+      echo "[create] agent $AGENT_ID ($AGENT_NAME) -> $FQDN"
+
+      # Idempotent: re-running the job must not duplicate the line.
+      if grep -qE "[[:space:]]$FQDN\\$" "$HOSTS_FILE" 2>/dev/null; then
+        echo "[create] host entry already present, leaving it alone"
+      else
+        printf '%s\\t%s\\n' "$HOST_IP" "$FQDN" >> "$HOSTS_FILE"
+        echo "[create] added: $HOST_IP $FQDN"
+      fi
+      grep -E "[[:space:]]$FQDN\\$" "$HOSTS_FILE"
+      ''')
+        }
+      }
+
+      job('agent-deploy') {
+        description('Deploys the agent and re-asserts its host entry.')
+        parameters(hostsParams)
+        logRotator { numToKeep(50) }
+        steps {
+          shell('''#!/bin/bash
+      set -euo pipefail
+      FQDN="$AGENT_SLUG.$HOST_DOMAIN"
+      echo "[deploy] agent $AGENT_ID ($AGENT_NAME) -> $FQDN"
+
+      if ! grep -qE "[[:space:]]$FQDN\\$" "$HOSTS_FILE" 2>/dev/null; then
+        printf '%s\\t%s\\n' "$HOST_IP" "$FQDN" >> "$HOSTS_FILE"
+        echo "[deploy] host entry was missing, added it"
+      fi
+
+      # A Relay agent is a DB row the worker executes — there is no artefact to
+      # ship. This step is where a real deploy (image push, restart) would go.
+      echo "[deploy] agent $AGENT_ID marked deployed at $FQDN"
+      ''')
+        }
+      }
+
+      job('agent-delete') {
+        description('Tears down a Relay agent and removes its host entry.')
+        parameters(hostsParams)
+        logRotator { numToKeep(50) }
+        steps {
+          shell('''#!/bin/bash
+      set -euo pipefail
+      FQDN="$AGENT_SLUG.$HOST_DOMAIN"
+      echo "[delete] agent $AGENT_ID ($AGENT_NAME) -> $FQDN"
+
+      if [ -f "$HOSTS_FILE" ]; then
+        # `sed -i` writes its temp file into the target's directory, which is
+        # read-only when the hosts file is a bind mount — filter elsewhere and
+        # `cat >` back, which truncates in place and keeps the inode.
+        # The label is matched whole, so `api.relay.local` never deletes
+        # `internal-api.relay.local`.
+        TMP=$(mktemp)
+        grep -vE "[[:space:]]$FQDN\\$" "$HOSTS_FILE" > "$TMP" || true
+        cat "$TMP" > "$HOSTS_FILE"
+        rm -f "$TMP"
+        echo "[delete] removed any entry for $FQDN"
+      else
+        echo "[delete] $HOSTS_FILE does not exist, nothing to remove"
+      fi
+      ''')
+        }
+      }

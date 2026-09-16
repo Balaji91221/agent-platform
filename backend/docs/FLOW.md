@@ -19,6 +19,9 @@ holds every credential and makes every outside call.
 ```mermaid
 flowchart TD
     UI["Next.js UI<br/>localhost:3100"] -->|"HTTP + JSON"| API["FastAPI<br/>localhost:8000"]
+    PEER["Outside A2A agent"] -->|"card + SendMessage<br/>bearer token"| API
+    API -->|"create · deploy · delete"| CI["Jenkins<br/>localhost:8090"]
+    CI -->|"host entry"| HOSTS[("jenkins/hosts")]
     API --> DB[("Database<br/>agents · runs · team<br/>credentials · MCP servers")]
     API -->|"Run now"| Q["Redis job queue"]
     API -->|"team message"| LEAD["Team router<br/>lead picks a teammate"]
@@ -40,6 +43,11 @@ flowchart TD
     SSE --> UI
     W -->|"outcome"| NOTE["Notifier<br/>email · Slack DM · webhook"]
 ```
+
+Two optional edges, both **off by default**: Jenkins (`JENKINS_ENABLED`) provisions a
+host entry per agent, and A2A (`A2A_ENABLED`) lets an outside agent call one of ours.
+Neither is on the path of a normal run, and neither being down stops an agent from
+being created, run, or deleted.
 
 **Why four processes, not one.** The scheduler only decides *what* is due, so it can
 never get stuck. The workers do the slow part and are the only thing you scale. The
@@ -154,6 +162,94 @@ for that teammate, if any. The agent's user turn (`app/team/context.py`) carries
 name and job title, the roster, and the recent transcript, so the reply reads as part
 of the conversation.
 
+### 2d. Another agent calls through A2A
+
+This is the one path that does **not** go through the queue. The caller is blocking
+on the answer, so the run happens inside the API process; a queued job would also be
+picked up by a worker and run twice.
+
+```mermaid
+sequenceDiagram
+    participant P as Outside agent
+    participant A as FastAPI /a2a
+    participant D as Database
+    participant X as Executor (in-process)
+
+    P->>A: GET /a2a/agents/1/.well-known/agent-card.json
+    alt A2A_ENABLED false, or no such agent
+        A-->>P: 404
+    else
+        A->>D: agent row + tool grants
+        A-->>P: card — skills, bearer scheme, text-only
+    end
+
+    P->>A: POST /a2a/agents/1 {SendMessage} + Bearer token
+    alt token missing or wrong
+        A-->>P: HTTP 401 · error -32000
+    else no text in parts
+        A-->>P: error -32602
+    else
+        A->>D: is_running False→True (atomic)
+        alt already running
+            A-->>P: error -32004 "already running"
+        else claimed
+            A->>D: INSERT run (trigger=a2a)
+            A->>X: perform_run(prompt = message text)
+            loop up to 3 attempts · 1s / 2s / 4s
+                X->>D: INSERT run_log · publish to SSE channel
+            end
+            X->>D: status, output, ended_at · release lock
+            X->>X: advance schedule · team reply · notify
+            A-->>P: result.task — COMPLETED + artifact, or FAILED + message
+        end
+    end
+```
+
+The request is held for the whole run: up to `RUN_TIMEOUT_SECONDS` (300 s) per
+attempt. Anything in front of the backend needs a read timeout above that.
+
+### 2e. Jenkins: create is fire-and-forget, deploy waits for a number
+
+```mermaid
+sequenceDiagram
+    participant U as Browser
+    participant A as FastAPI
+    participant D as Database
+    participant J as Jenkins
+
+    U->>A: POST /agents
+    A->>D: INSERT agent, tools, schedule
+    alt JENKINS_ENABLED false
+        A->>A: status = disabled, Jenkins never contacted
+    else
+        A->>J: GET crumb · POST agent-create/buildWithParameters
+        alt Jenkins down or refused
+            A->>A: log WARNING, status = unavailable / failure
+        else accepted
+            J-->>A: 201 + queue item URL
+        end
+    end
+    A-->>U: 201 agent (never waits for the build)
+
+    U->>A: POST /agents/1/deploy
+    A->>J: POST agent-deploy/buildWithParameters
+    J-->>A: 201 + queue item URL
+    loop up to 20 × 0.5 s
+        A->>J: GET queue/item/N/api/json
+        J-->>A: executable? {number, url}
+    end
+    A-->>U: 200 {jobs: [{status: running, build_number, url}]}
+
+    loop every 4 s while any job is queued or running
+        U->>A: GET /agents/1/deployment
+        A->>J: GET job/*/api/json?tree=builds[…parameters]
+        A-->>U: latest build per job whose AGENT_ID = 1
+    end
+```
+
+Builds are matched to an agent by the `AGENT_ID` build parameter, not by a stored
+build number, so nothing has to be kept in step with Jenkins' own history.
+
 ---
 
 ## 3. Which screen calls which endpoint
@@ -165,14 +261,15 @@ The frontend routes already exist; these are the calls to wire into each.
 | `/today` | `GET /stats?range=today\|7d\|30d` | Every tile, chart, and ring |
 | `/agents` | `GET /agents` · `DELETE /agents/{id}` | The table |
 | `/create` | `GET /connections/tools` · `POST /agents` | Tool list, then save (402 past the cap) |
-| `/detail` | `GET /agents/{id}` · `GET /agents/{id}/runs` · `GET /runs/{id}/logs` · `GET /runs/{id}/stream` · `POST /agents/{id}/run` | Detail, history, live log, Run now |
+| `/agents/[id]` | `GET /agents/{id}` · `GET /agents/{id}/runs` · `GET /runs/{id}/logs` · `GET /runs/{id}/stream` · `POST /agents/{id}/run` · `POST /agents/{id}/pause\|resume` · `GET /agents/{id}/deployment` · `POST /agents/{id}/deploy` | Detail, history, live log, Run now, pause, Jenkins jobs + host entry, A2A card + token |
 | `/chat` | `POST /builder/draft` | Plain words → a draft the form opens |
 | `/team` | `GET /team` · `GET /team/messages` · `POST /team/messages` · `PUT /team/lead` | Roster, thread, lead |
 | `/mate` | `GET /agents` · `POST /team/teammates` | Pick an agent, name it |
 | `/connections` | `GET/POST/DELETE /connections` · `GET/POST /mcp-servers` | Apps and MCP servers |
 | `/notifications` | `GET /notifications` · `POST /notifications/read-all` · `GET/PUT /notifications/prefs` | Feed, quiet hours |
 
-`/detail` is currently hard-coded to one agent; it becomes `/agents/[id]` when wired.
+`/architecture` reads `GET /health` for the run caps it prints, so the numbers on that page
+come from the backend rather than being typed into the UI.
 
 ---
 
@@ -189,6 +286,11 @@ The frontend routes already exist; these are the calls to wire into each.
 | Log line reaches the browser | under 2s | `runtime/logger.py` → SSE |
 | Agents per user | 5 → HTTP 402 | `api/agents.py` |
 | Same agent twice at once | refused → HTTP 409 | `runtime/runs.py` |
+| A2A `SendMessage` held open | up to 300s per attempt | `a2a/server.py` → `RUN_TIMEOUT_SECONDS` |
+| A2A call to a busy agent | refused → JSON-RPC `-32004` | `a2a/server.py` |
+| One Jenkins HTTP call | 10s | `JENKINS_TIMEOUT_SECONDS` |
+| Deploy waits for a build number | 20 × 0.5s = 10s, then `queued` | `cicd/jenkins.py` |
+| Deployment card refresh | every 4s while a build is in flight | `components/agents/deployment-card.tsx` |
 
 ---
 
@@ -227,3 +329,8 @@ result and says so; a team message to such a teammate writes a `blocked` row.
 
 Postgres and Redis come from `docker compose up -d`; set a
 `sqlite+aiosqlite://` URL to run with no Docker at all.
+
+Jenkins (`docker compose up -d jenkins`, port 8090) and A2A are both **off** until
+`JENKINS_ENABLED=true` / `A2A_ENABLED=true` are set. Off means: every Jenkins job
+reports `disabled`, and every `/a2a/...` route is 404. Both are documented in full in
+the README.

@@ -10,6 +10,8 @@ import type { Me } from '@/lib/api/schemas';
 type AuthState =
   | { kind: 'loading' }
   | { kind: 'anonymous' }
+  /** The backend did not answer at all. Sending the user to sign in would lie. */
+  | { kind: 'offline'; message: string }
   | { kind: 'signed-in'; me: Me };
 
 type AuthValue = { state: AuthState; logout: () => Promise<void> };
@@ -19,7 +21,9 @@ const AuthContext = createContext<AuthValue | null>(null);
 /**
  * Who is signed in, from GET /auth/me. Anonymous on any page but /login means
  * the session is gone, so the browser goes to /login; the API client does the
- * same on any 401 it meets later.
+ * same on any 401 it meets later. A request that never reached the backend is
+ * kept separate: bouncing to sign-in there sends the user to a button that
+ * cannot work either, and hides the real fault.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -29,8 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const state: AuthState =
     me.state.kind === 'ready'
       ? { kind: 'signed-in', me: me.state.data }
-      : me.state.kind === 'error' && me.state.message.includes('401')
-        ? { kind: 'anonymous' }
+      : me.state.kind === 'error' && me.state.code === 'OFFLINE'
+        ? { kind: 'offline', message: me.state.message }
         : me.state.kind === 'error'
           ? { kind: 'anonymous' }
           : { kind: 'loading' };

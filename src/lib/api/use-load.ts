@@ -6,7 +6,7 @@ import type { Result } from './client';
 /** Mutually exclusive states, so a component cannot render "loaded and erroring". */
 export type Load<T> =
   | { kind: 'loading' }
-  | { kind: 'error'; message: string }
+  | { kind: 'error'; message: string; code?: string }
   | { kind: 'ready'; data: T };
 
 type Options<T> = {
@@ -56,7 +56,7 @@ export function useLoad<T>(
         setState(
           result.ok
             ? { kind: 'ready', data: result.data }
-            : { kind: 'error', message: result.error.message },
+            : { kind: 'error', message: result.error.message, code: result.error.code },
         );
       } catch (e: unknown) {
         // An abort is the component unmounting, not a failure.

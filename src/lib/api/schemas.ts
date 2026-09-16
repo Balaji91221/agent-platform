@@ -242,3 +242,42 @@ export const healthSchema = z.object({
   limits: limitsSchema,
 });
 export type Health = z.infer<typeof healthSchema>;
+
+/** One Jenkins build. `status` is the only field the UI switches on. */
+export const jobRunSchema = z.object({
+  job: z.string(),
+  status: z.enum([
+    'none',
+    'queued',
+    'running',
+    'success',
+    'failure',
+    'unavailable',
+    'disabled',
+  ]),
+  build_number: z.number().nullable(),
+  url: z.string().nullable(),
+  message: z.string(),
+});
+export type JobRun = z.infer<typeof jobRunSchema>;
+export type JobStatus = JobRun['status'];
+
+/** How another agent reaches this one. `token` is a bearer credential. */
+export const a2aSchema = z.object({
+  enabled: z.boolean(),
+  card_url: z.string(),
+  endpoint_url: z.string(),
+  token: z.string(),
+});
+export type A2A = z.infer<typeof a2aSchema>;
+
+export const deploymentSchema = z.object({
+  agent_id: z.number(),
+  slug: z.string(),
+  host_entry: z.string(),
+  hosts_file: z.string(),
+  enabled: z.boolean(),
+  jobs: z.array(jobRunSchema),
+  a2a: a2aSchema,
+});
+export type Deployment = z.infer<typeof deploymentSchema>;

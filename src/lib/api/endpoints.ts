@@ -4,6 +4,7 @@ import { BASE_URL, request } from './client';
 import type { Result } from './client';
 import {
   agentSchema,
+  deploymentSchema,
   connectionSchema,
   meSchema,
   healthSchema,
@@ -22,6 +23,7 @@ import {
 } from './schemas';
 import type {
   Agent,
+  Deployment,
   BuilderResult,
   Connection,
   Me,
@@ -81,6 +83,12 @@ export const resumeAgent = (id: number): Promise<Result<Agent>> =>
 
 export const listAgentRuns = (id: number, signal?: AbortSignal): Promise<Result<Run[]>> =>
   request(`/agents/${id}/runs`, z.array(runSchema), s(signal));
+
+export const getDeployment = (id: number, signal?: AbortSignal): Promise<Result<Deployment>> =>
+  request(`/agents/${id}/deployment`, deploymentSchema, s(signal));
+
+export const deployAgent = (id: number): Promise<Result<Deployment>> =>
+  request(`/agents/${id}/deploy`, deploymentSchema, { method: 'POST' });
 
 /* -------------------------------------------------------------------- runs */
 

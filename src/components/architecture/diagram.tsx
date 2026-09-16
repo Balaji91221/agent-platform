@@ -1,145 +1,194 @@
-type Box = {
-  x: number;
-  y: number;
-  title: string;
-  sub: string;
-  fill: string;
-  stroke: string;
+/**
+ * The system in four bands: you, the control plane, the execution plane, and
+ * everything outside Relay. Paths are orthogonal on purpose — a diagonal in a
+ * lane diagram reads as "special", and none of these edges are.
+ */
+
+type Tone = 'app' | 'queue' | 'store' | 'out' | 'ext';
+
+const TONE: Record<Tone, { fill: string; stroke: string; label: string }> = {
+  app: { fill: '#eef2f8', stroke: '#2f4a7a', label: 'Relay code' },
+  queue: { fill: '#fdf3de', stroke: '#8a5a00', label: 'Queue' },
+  store: { fill: '#e8f4ec', stroke: '#1a6b3c', label: 'Storage' },
+  out: { fill: '#f2eef8', stroke: '#5b4a7d', label: 'Leaves Relay' },
+  ext: { fill: '#f3f4f6', stroke: '#5f6368', label: 'Not ours' },
 };
 
-type Edge = {
-  d: string;
-  label?: { x: number; y: number; w: number; text: string };
-  dashed?: boolean;
-};
+type Lane = { y: number; h: number; name: string };
+
+const LANES: Lane[] = [
+  { y: 8, h: 84, name: 'You' },
+  { y: 104, h: 244, name: 'Control plane' },
+  { y: 360, h: 248, name: 'Execution' },
+  { y: 620, h: 84, name: 'Outside Relay' },
+];
+
+type Box = { x: number; y: number; title: string; sub: string; tone: Tone };
+
+const W = 200;
+const H = 54;
 
 const BOXES: Box[] = [
-  { x: 340, y: 16, title: 'Browser', sub: 'Forms, chat, and the team thread', fill: '#f4f5f7', stroke: '#6b7280' },
-  { x: 340, y: 106, title: 'Web API', sub: 'Creates agents, takes messages', fill: '#eef1f7', stroke: '#2d4470' },
-  { x: 640, y: 106, title: 'PostgreSQL', sub: 'Agents, runs, teams, credentials', fill: '#e9f3ed', stroke: '#1a6b3c' },
-  { x: 40, y: 196, title: 'Lead agent', sub: 'Routes team work by job title', fill: '#eef1f7', stroke: '#2d4470' },
-  { x: 340, y: 196, title: 'Scheduler', sub: 'Wakes every 30s, finds what is due', fill: '#eef1f7', stroke: '#2d4470' },
-  { x: 340, y: 286, title: 'Job queue', sub: 'Holds work, one job per run', fill: '#fbf1db', stroke: '#8a5a00' },
-  { x: 40, y: 376, title: 'Model API', sub: 'Decides the next step', fill: '#f1eef6', stroke: '#5b4a7d' },
-  { x: 340, y: 376, title: 'Worker', sub: 'Runs the agent loop', fill: '#eef1f7', stroke: '#2d4470' },
-  { x: 640, y: 376, title: 'Notifier', sub: 'Email, Slack DM, or webhook', fill: '#f1eef6', stroke: '#5b4a7d' },
-  { x: 340, y: 466, title: 'Tool router', sub: 'Built-in tool, or an MCP tool', fill: '#eef1f7', stroke: '#2d4470' },
-  { x: 40, y: 556, title: 'MCP client', sub: 'Calls discovered tools', fill: '#f1eef6', stroke: '#5b4a7d' },
-  { x: 340, y: 556, title: 'Connector layer', sub: 'Per-app adapters', fill: '#f1eef6', stroke: '#5b4a7d' },
-  {
-    x: 640,
-    y: 556,
-    title: 'Credential store',
-    sub: 'Tokens and keys, decrypt on use',
-    fill: '#e9f3ed',
-    stroke: '#1a6b3c',
-  },
-  { x: 40, y: 646, title: 'MCP servers', sub: 'Linear, internal docs', fill: '#f4f5f7', stroke: '#6b7280' },
-  { x: 340, y: 646, title: 'Slack, Gmail, Zendesk', sub: 'The real accounts', fill: '#f4f5f7', stroke: '#6b7280' },
+  { x: 390, y: 24, title: 'Browser', sub: 'Form · chat · team thread', tone: 'ext' },
+
+  { x: 390, y: 120, title: 'Web API', sub: 'FastAPI, every screen calls it', tone: 'app' },
+  { x: 680, y: 120, title: 'PostgreSQL', sub: 'Agents · runs · team · tokens', tone: 'store' },
+  { x: 100, y: 200, title: 'Team router', sub: 'Lead decides who takes it', tone: 'app' },
+  { x: 680, y: 200, title: 'Scheduler', sub: 'Wakes every 30s', tone: 'app' },
+  { x: 390, y: 280, title: 'Job queue', sub: 'Redis, one job per run', tone: 'queue' },
+
+  { x: 100, y: 376, title: 'Model API', sub: 'NVIDIA · Anthropic', tone: 'out' },
+  { x: 390, y: 376, title: 'Worker', sub: 'Runs the agent loop', tone: 'app' },
+  { x: 390, y: 456, title: 'Tool router', sub: 'Picks the caller, loads the token', tone: 'app' },
+  { x: 680, y: 456, title: 'Credential store', sub: 'Encrypted, decrypted on use', tone: 'store' },
+  { x: 100, y: 536, title: 'MCP client', sub: 'Tools it discovered', tone: 'out' },
+  { x: 390, y: 536, title: 'Connectors', sub: 'Gmail · Slack · Sheets · YouTube', tone: 'out' },
+  { x: 680, y: 536, title: 'Notifier', sub: 'Reads quiet hours first', tone: 'app' },
+
+  { x: 100, y: 636, title: 'MCP servers', sub: 'Whatever you registered', tone: 'ext' },
+  { x: 390, y: 636, title: 'Your accounts', sub: 'The real inbox, the real channel', tone: 'ext' },
+  { x: 680, y: 636, title: 'You get told', sub: 'Email · Slack DM · webhook', tone: 'ext' },
 ];
+
+type Edge = { d: string; text?: string; at?: [number, number]; dashed?: boolean };
 
 const EDGES: Edge[] = [
-  { d: 'M440,72 L440,106' },
-  { d: 'M440,162 L440,196', label: { x: 389.6, y: 170, w: 100.8, text: 'saves schedule' } },
-  { d: 'M440,252 L440,286', label: { x: 411.3, y: 260, w: 57.4, text: 'due now' } },
-  { d: 'M440,342 L440,376', label: { x: 408.2, y: 350, w: 63.6, text: 'picks up' } },
-  { d: 'M440,432 L440,466', label: { x: 405.1, y: 440, w: 69.8, text: 'tool call' } },
-  { d: 'M440,522 L440,556', label: { x: 408.2, y: 530, w: 63.6, text: 'built-in' } },
-  { d: 'M440,612 L440,646', label: { x: 417.5, y: 620, w: 45, text: 'HTTPS' } },
-  { d: 'M140,612 L140,646', label: { x: 117.5, y: 620, w: 45, text: 'HTTPS' } },
-  { d: 'M340,494 L240,556', label: { x: 273.7, y: 516, w: 32.6, text: 'MCP' } },
-  { d: 'M540,134 L640,134', label: { x: 539.6, y: 125, w: 100.8, text: 'reads / writes' } },
-  { d: 'M540,224 L640,180', dashed: true },
-  { d: 'M540,378 L640,180', dashed: true, label: { x: 561.3, y: 270, w: 57.4, text: 'run log' } },
-  { d: 'M240,390 L340,390' },
-  { d: 'M340,404 L240,404', label: { x: 264.4, y: 395, w: 51.2, text: 'prompt' } },
-  { d: 'M540,404 L640,404', label: { x: 561.3, y: 395, w: 57.4, text: 'outcome' } },
-  { d: 'M540,584 L640,584', label: { x: 548.9, y: 575, w: 82.2, text: 'needs token' } },
-  { d: 'M340,148 L240,206', label: { x: 245.8, y: 168, w: 88.4, text: 'team message' } },
-  { d: 'M240,240 L340,300', label: { x: 255.1, y: 261, w: 69.8, text: 'delegates' } },
+  { d: 'M490,78 V120' },
+
+  { d: 'M590,147 H680', text: 'reads / writes', at: [592, 129] },
+  { d: 'M780,174 V200', text: 'what is due', at: [786, 178], dashed: true },
+
+  { d: 'M490,174 V280', text: 'Run now', at: [497, 210] },
+  { d: 'M490,187 H200 V200', text: 'team message', at: [246, 168] },
+
+  { d: 'M200,254 V307 H390', text: 'delegates', at: [252, 288] },
+  { d: 'M780,254 V307 H590', text: 'due now', at: [640, 288] },
+
+  { d: 'M490,334 V376', text: 'picks up', at: [497, 344] },
+
+  { d: 'M390,390 H300', text: 'prompt', at: [316, 381] },
+  { d: 'M300,416 H390', text: 'answer', at: [316, 407] },
+
+  { d: 'M490,430 V456', text: 'tool call', at: [497, 432] },
+  { d: 'M590,483 H680', text: 'decrypt', at: [598, 465] },
+  { d: 'M490,510 V536', text: 'built-in name', at: [497, 512] },
+  { d: 'M390,483 H200 V536', text: 'mcp: name', at: [212, 494] },
+
+  { d: 'M400,376 V366 H40 V51 H390', text: 'live log, under 2s', at: [55, 150], dashed: true },
+  { d: 'M600,376 V352 H930 V147 H880', text: 'run log', at: [896, 250], dashed: true },
+  { d: 'M590,403 H920 V563 H880', text: 'outcome', at: [700, 385] },
+
+  { d: 'M200,590 V636', text: 'HTTPS', at: [207, 598] },
+  { d: 'M490,590 V636', text: 'HTTPS', at: [497, 598] },
+  { d: 'M780,590 V636', text: 'if it matters', at: [787, 598] },
 ];
 
-const LEGEND = [
-  { background: '#eef1f7', borderColor: '#2d4470', label: 'Application code' },
-  { background: '#fbf1db', borderColor: '#a56b00', label: 'Queue' },
-  { background: '#e9f3ed', borderColor: '#188038', label: 'Storage' },
-  { background: '#f1eef6', borderColor: '#8430ce', label: 'Outbound calls' },
-  { background: '#f4f5f7', borderColor: '#5f6368', label: 'Outside the system' },
-];
+/** Pills are sized from the text so a wording change cannot clip a label. */
+const pill = (text: string) => Math.round(text.length * 5.4 + 14);
+
+const LEGEND: Tone[] = ['app', 'queue', 'store', 'out', 'ext'];
 
 export function SystemDiagram() {
   return (
     <>
       <div className="diagram">
-        <svg
-          style={{ maxWidth: 860, margin: '0 auto' }}
-          viewBox="0 0 880 730"
-          role="img"
-          aria-label="System architecture diagram"
-        >
+        <svg viewBox="0 0 980 720" role="img" aria-label="Relay system architecture, four bands">
           <defs>
-            <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-              <path d="M0,1 L8,4.5 L0,8 z" fill="#a8adb8" />
+            <marker id="ar" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
+              <path d="M0,1 L8,4.5 L0,8 z" fill="#9aa0a6" />
             </marker>
           </defs>
+
+          {LANES.map((lane) => (
+            <g key={lane.name}>
+              <rect
+                x="8"
+                y={lane.y}
+                width="964"
+                height={lane.h}
+                rx="16"
+                fill="#fafbfc"
+                stroke="#edeff2"
+                strokeWidth="1"
+              />
+              <text x="24" y={lane.y + 20} fontSize="9.5" letterSpacing="0.09em" fill="#9aa0a6">
+                {lane.name.toUpperCase()}
+              </text>
+            </g>
+          ))}
 
           {EDGES.map((e) => (
             <g key={e.d}>
               <path
                 d={e.d}
                 fill="none"
-                stroke="#a8adb8"
-                strokeWidth="1.6"
+                stroke="#9aa0a6"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
                 strokeDasharray={e.dashed ? '5 4' : undefined}
                 markerEnd="url(#ar)"
               />
-              {e.label ? (
+              {e.text && e.at ? (
                 <>
-                  <rect x={e.label.x} y={e.label.y} width={e.label.w} height="18" rx="9" fill="#fff" />
+                  <rect x={e.at[0]} y={e.at[1]} width={pill(e.text)} height="17" rx="8.5" fill="#fff" />
                   <text
-                    x={e.label.x + e.label.w / 2}
-                    y={e.label.y + 13}
+                    x={e.at[0] + pill(e.text) / 2}
+                    y={e.at[1] + 12}
                     textAnchor="middle"
-                    fontSize="10.5"
+                    fontSize="10"
                     fill="#6b7280"
                   >
-                    {e.label.text}
+                    {e.text}
                   </text>
                 </>
               ) : null}
             </g>
           ))}
 
-          {BOXES.map((b) => (
-            <g key={b.title}>
-              <rect
-                x={b.x}
-                y={b.y}
-                width="200"
-                height="56"
-                rx="14"
-                fill={b.fill}
-                stroke={b.stroke}
-                strokeWidth="1.5"
-              />
-              <text x={b.x + 100} y={b.y + 24} textAnchor="middle" fontSize="13" fontWeight="500" fill={b.stroke}>
-                {b.title}
-              </text>
-              <text x={b.x + 100} y={b.y + 41} textAnchor="middle" fontSize="10.5" fill="#6b7280">
-                {b.sub}
-              </text>
-            </g>
-          ))}
+          {BOXES.map((b) => {
+            const tone = TONE[b.tone];
+            return (
+              <g key={b.title}>
+                <rect
+                  x={b.x}
+                  y={b.y}
+                  width={W}
+                  height={H}
+                  rx="12"
+                  fill={tone.fill}
+                  stroke={tone.stroke}
+                  strokeWidth="1.4"
+                />
+                <text
+                  x={b.x + W / 2}
+                  y={b.y + 23}
+                  textAnchor="middle"
+                  fontSize="13"
+                  fontWeight="500"
+                  fill={tone.stroke}
+                >
+                  {b.title}
+                </text>
+                <text x={b.x + W / 2} y={b.y + 40} textAnchor="middle" fontSize="10.5" fill="#6b7280">
+                  {b.sub}
+                </text>
+              </g>
+            );
+          })}
         </svg>
       </div>
 
       <div className="dlegend">
-        {LEGEND.map((l) => (
-          <span key={l.label}>
-            <i style={{ background: l.background, borderColor: l.borderColor }} />
-            {l.label}
+        {LEGEND.map((t) => (
+          <span key={t}>
+            <i style={{ background: TONE[t].fill, borderColor: TONE[t].stroke }} />
+            {TONE[t].label}
           </span>
         ))}
+        <span>
+          <i className="dashed" />
+          Data, not work
+        </span>
       </div>
     </>
   );

@@ -80,3 +80,35 @@ class RunLogOut(BaseModel):
     line: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class JobRunOut(BaseModel):
+    """One Jenkins build. `status` is the only field the UI switches on."""
+
+    job: str
+    # none | queued | running | success | failure | unavailable | disabled
+    status: str
+    build_number: int | None = None
+    url: str | None = None
+    message: str = ""
+
+
+class A2AOut(BaseModel):
+    """How another agent reaches this one. `token` is a bearer credential."""
+
+    enabled: bool
+    card_url: str
+    endpoint_url: str
+    token: str
+
+
+class DeploymentOut(BaseModel):
+    """Everything the agent detail screen shows about CI and A2A, in one call."""
+
+    agent_id: int
+    slug: str
+    host_entry: str
+    hosts_file: str
+    enabled: bool
+    jobs: list[JobRunOut] = Field(default_factory=list)
+    a2a: A2AOut

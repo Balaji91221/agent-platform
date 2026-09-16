@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api import (
+    a2a,
     agents,
     auth,
     chat_builder,
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(Exception, generic_exception_handler)
 
     for module in (
+        a2a,
         agents,
         auth,
         runs,

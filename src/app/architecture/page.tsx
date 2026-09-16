@@ -1,98 +1,61 @@
-import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { SystemDiagram } from '@/components/architecture/diagram';
 import { DownloadDiagramButton } from '@/components/architecture/download-button';
+import { LimitsCard } from '@/components/architecture/limits-card';
+import { RoutingCard } from '@/components/architecture/routing';
+import { ThreeWaysIn } from '@/components/architecture/starts';
 import { COMPONENTS, DELEGATION, PartsTable } from '@/components/architecture/tables';
 import { CardHead, PageHead } from '@/components/ui';
 
 const FLOW: { title: string; blurb: ReactNode }[] = [
   {
-    title: 'The user saves an agent',
+    title: 'A job reaches a free worker',
     blurb:
-      'Built in the form or drafted in chat — both land at the same web API, which writes the agent to PostgreSQL and works out when it is next due.',
+      'Workers are separate processes. Add more and more agents run at once; the scheduler never has to grow with them.',
   },
   {
-    title: 'Something asks for a run',
-    blurb:
-      'Either the scheduler finds the agent due, or a message in the team thread is handed to it. Both paths end the same way: a job on the queue.',
+    title: 'The prompts are filled in',
+    blurb: (
+      <>
+        <span className="mono">{'{{now}}'}</span>, <span className="mono">{'{{last_run}}'}</span> and{' '}
+        <span className="mono">{'{{agent_name}}'}</span> are replaced with real values before the model sees anything,
+        which is why an agent can state the time instead of inventing one.
+      </>
+    ),
   },
   {
-    title: 'The scheduler wakes every 30 seconds',
-    blurb: 'It asks one question: which agents were due before now and are not already running?',
-  },
-  {
-    title: 'Or the lead agent delegates',
+    title: 'The model gets the prompts and the allowed tools',
     blurb:
-      "Whichever teammate you made lead reads the others' job titles, picks the closest match, and posts a handoff card. It queues the job but never calls a tool itself.",
-  },
-  {
-    title: 'A worker picks the job up',
-    blurb:
-      'Workers are separate processes. Add more of them and more agents run at once; the scheduler never needs to scale.',
-  },
-  {
-    title: 'The agent loop starts',
-    blurb:
-      'The worker sends the prompts and the allowed tool list to the model the agent was configured with, which replies with either an answer or a tool to call.',
+      'It replies with an answer, or with one tool it wants called. It only ever sees the tools that agent was granted.',
   },
   {
     title: 'The tool router decides who handles the call',
     blurb: (
       <>
-        A built-in name like <span className="mono">gmail.list_unread</span> goes to that app&rsquo;s adapter. Anything
-        discovered from an MCP server goes to the MCP client instead. The model does not know the difference.
+        A built-in name like <span className="mono">gmail.list_unread</span> goes to that connector. Anything discovered
+        from an MCP server goes to the MCP client. The model cannot tell the difference.
       </>
     ),
   },
   {
-    title: 'The caller fetches a credential',
+    title: 'The credential is decrypted for that one call',
     blurb:
-      "It pulls that user's token or API key, decrypts it, refreshes it if expired, then makes the real call. Nothing is refreshed on a timer.",
+      'The router loads the connection, decrypts the token, and makes the real request. An expired connection raises rather than quietly calling unauthenticated.',
   },
   {
-    title: 'The result goes back to the model',
-    blurb: 'Steps six to eight repeat until the model is done, or the 20-call or 5-minute cap is hit.',
+    title: 'The result goes back and the loop repeats',
+    blurb: 'Until the model is done, or the tool-call cap is reached, or the run runs out of wall clock.',
   },
   {
-    title: 'Everything is written down',
+    title: 'Every step is written as it happens',
     blurb:
-      'Each step lands in the run record as it happens. The worker then computes the next due time and, if the outcome is worth hearing about, hands it to the notifier.',
+      'Each line lands in the run log and is published on the run’s channel, so an open page shows it in under two seconds.',
   },
-];
-
-const LIMITS: [string, string][] = [
-  ['Scheduler tick', 'every 30s'],
-  ['Run timeout', '5 minutes'],
-  ['Single tool call', '30s, then cancel'],
-  ['Tool calls per run', '20'],
-  ['Retries', '3 · 1s / 2s / 4s'],
-  ['Overlapping runs', 'skipped'],
-  ['Alerts in quiet hours', 'failures only'],
-];
-
-const HANDOFF: ReactNode[] = [
-  'Your message lands in the group chat. There is one thread for the team, not one per agent.',
-  <>
-    If you typed an <span className="mono">@name</span>, it goes straight there and the lead is skipped.
-  </>,
-  <>
-    Otherwise the teammate you marked as <b style={{ fontWeight: 500, color: 'var(--ink)' }}>lead</b> picks it up. The
-    lead owns anything unaddressed, so no request sits unclaimed. A team with no lead leaves the message unclaimed on
-    purpose, and says so.
-  </>,
-  'She checks whether the job is inside her own remit. If it is, she just answers.',
-  <>
-    If not, she reads the other teammates&rsquo; <b style={{ fontWeight: 500, color: 'var(--ink)' }}>job titles</b> and
-    picks the closest match. The title is the routing key, which is why it is a required field.
-  </>,
-  <>
-    A <b style={{ fontWeight: 500, color: 'var(--ink)' }}>handoff card</b> posts into the thread: who passed it, who
-    received it, and why. That card is the receipt for agent-to-agent communication.
-  </>,
-  'The specialist starts and its dot in the roster turns amber, so you can see who is busy.',
-  'If it is missing something — an expired connection, a decision only you can make — it says exactly what it needs and stops. It does not guess a value.',
-  'Otherwise it replies in the same thread under its own name and colour.',
-  'That reply joins the shared context, readable by every teammate. This is what removes copying between windows.',
+  {
+    title: 'The ending is dealt with',
+    blurb:
+      'A failure is retried with backoff. Then the next due time is computed, any team reply is posted before the lock is released, a held message is started, and the notifier is handed anything worth telling you.',
+  },
 ];
 
 export default function ArchitecturePage() {
@@ -100,30 +63,23 @@ export default function ArchitecturePage() {
     <>
       <PageHead
         title="Architecture"
-        blurb="How work reaches an agent — on a schedule, or handed over in the team thread — and how it gets from there to a message in your Slack."
+        blurb="Two programs and one HTTP boundary. The browser holds no credentials and calls nothing but Relay; the backend makes every outside call."
         actions={<DownloadDiagramButton />}
       />
 
       <div className="card" style={{ marginBottom: 16 }}>
         <CardHead
           title="System diagram"
-          blurb="Solid lines carry work, dashed lines carry data. Two ways in, one job queue."
-          aside={
-            <span className="badge ok">
-              <i />
-              v2 scope
-            </span>
-          }
+          blurb="Solid lines carry work, dashed lines carry data. Read it top to bottom: a request enters, a job is queued, a worker does the slow part."
         />
         <SystemDiagram />
       </div>
 
-      <div className="cols">
+      <ThreeWaysIn />
+
+      <div className="cols" style={{ marginTop: 16 }}>
         <div className="card">
-          <CardHead
-            title="What happens on a run"
-            blurb="Start to finish, whichever way the run was triggered"
-          />
+          <CardHead title="What happens on a run" blurb="Identical whichever way the run was triggered" />
           <ul className="flowlist">
             {FLOW.map((f, i) => (
               <li key={f.title}>
@@ -139,61 +95,46 @@ export default function ArchitecturePage() {
 
         <div className="stack">
           <div className="card">
-            <CardHead title="Why split the scheduler and workers" />
-            <div className="card-body" style={{ fontSize: '13.5px', color: 'var(--ink-2)', lineHeight: 1.6 }}>
-              The scheduler only decides what is due, so it stays fast and never blocks. The workers do everything slow.
-              Run one scheduler and as many workers as you need.
+            <CardHead title="Why four processes" />
+            <div className="card-body arch-prose">
+              The API answers in milliseconds. The scheduler only decides what is due, so it can never get stuck. The
+              workers do everything slow. The notifier talks to a mail provider that may hang.
               <div className="divider" />
-              <b style={{ display: 'block', color: 'var(--ink)', fontWeight: 500, marginBottom: 6 }}>
-                The failure this prevents
-              </b>
-              If deciding and doing shared a process, one agent stuck on a slow API would delay every other
-              agent&rsquo;s 9am run.
+              <b>The failure this prevents</b>
+              One agent stuck on a slow API delaying every other agent’s 9am run. Split apart, it delays only itself.
             </div>
           </div>
+
+          <LimitsCard />
 
           <div className="card">
-            <CardHead title="Hard limits" />
-            <div className="card-body">
-              <dl className="kv" style={{ gridTemplateColumns: '1fr auto', fontSize: 13 }}>
-                {LIMITS.map(([term, value]) => (
-                  <Fragment key={term}>
-                    <dt>{term}</dt>
-                    <dd>{value}</dd>
-                  </Fragment>
-                ))}
-              </dl>
+            <CardHead title="Two rules that hold everywhere" />
+            <div className="card-body arch-prose">
+              <b>Credentials</b>
+              Encrypted before they are written, decrypted only in the moment before a call. Four kinds share one store:
+              OAuth tokens, API keys, custom headers, and MCP bearer tokens.
+              <div className="divider" />
+              <b>Ownership</b>
+              Every query for your data is filtered by user in the database layer, not hidden by the UI. Another
+              account’s id returns 404, never 403.
             </div>
           </div>
         </div>
       </div>
 
-      <PartsTable title="Components" rows={COMPONENTS} />
+      <RoutingCard />
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <CardHead
-          title="How a handoff works"
-          blurb="What happens between the moment you press send and a second agent replying"
-        />
-        <div className="card-body">
-          <ol
-            style={{
-              margin: 0,
-              paddingLeft: 20,
-              fontSize: 14,
-              lineHeight: 1.75,
-              color: 'var(--ink-2)',
-              maxWidth: '70ch',
-            }}
-          >
-            {HANDOFF.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ol>
-        </div>
-      </div>
+      <PartsTable
+        title="Components"
+        blurb="Every part, and the file to open when you want to change it"
+        rows={COMPONENTS}
+      />
 
-      <PartsTable title="Delegation parts" rows={DELEGATION} />
+      <PartsTable
+        title="How a team is put together"
+        blurb="Agents do the work; these pieces decide which one, and make that decision visible"
+        rows={DELEGATION}
+      />
     </>
   );
 }

@@ -18,6 +18,8 @@ export function Topbar() {
   const feed = useLoad(useCallback((signal) => listNotifications(signal), []), { pollMs: 15000 });
   const unread = feed.state.kind === 'ready' ? feed.state.data.filter((n) => !n.is_read).length : 0;
   const [searching, setSearching] = useState(false);
+  // These pages carry their own New agent button; two of them a centimetre apart reads as a bug.
+  const ownsNewAgent = pathname === '/create' || pathname === '/agents';
 
   // ⌘K / Ctrl+K opens the palette from anywhere in the workspace.
   useEffect(() => {
@@ -54,10 +56,12 @@ export function Topbar() {
           <BellIcon />
           {unread ? <span className="notif-dot">{unread > 99 ? '99+' : unread}</span> : null}
         </Link>
-        <Link className="btn" href="/create">
-          <PlusIcon />
-          New agent
-        </Link>
+        {ownsNewAgent ? null : (
+          <Link className="btn" href="/create">
+            <PlusIcon />
+            New agent
+          </Link>
+        )}
       </div>
     </header>
   );

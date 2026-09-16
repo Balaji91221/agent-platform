@@ -57,7 +57,10 @@ svg{display:block;flex:0 0 auto}
 @keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
 /* main pane is the big rounded Google surface */
-.app>div:last-child{display:flex;flex-direction:column}
+/* min-width:0 or a wide table stretches the grid track and the whole page
+   scrolls sideways instead of the table scrolling inside its card. */
+.app>div:last-child{display:flex;flex-direction:column;min-width:0}
+.wrap{min-width:0}
 .app>div:last-child>.wrap{background:var(--surf-1);border-radius:0;flex:1;padding-top:24px}
 
 /* ============ primitives ============ */
@@ -399,8 +402,8 @@ tbody tr:hover{background:var(--surf-1)}
 @media (max-width:1100px){.tiles{grid-template-columns:repeat(2,1fr)}.dash2,.dash3{grid-template-columns:1fr}}
 
 /* ============ architecture ============ */
-.diagram{padding:24px 20px;overflow-x:auto}
-.diagram svg{width:100%;min-width:660px;height:auto;font-family:Roboto,sans-serif}
+.diagram{padding:20px 16px 8px;overflow-x:auto}
+.diagram svg{width:100%;min-width:720px;max-width:980px;margin:0 auto;display:block;height:auto;font-family:Roboto,sans-serif}
 .flowlist{list-style:none;margin:0;padding:0;counter-reset:f}
 .flowlist li{display:flex;gap:16px;padding:16px 20px;border-bottom:1px solid var(--outline-2)}
 .flowlist li:last-child{border-bottom:0}
@@ -410,6 +413,40 @@ tbody tr:hover{background:var(--surf-1)}
 .dlegend{display:flex;gap:20px;flex-wrap:wrap;padding:0 20px 20px;font-size:12.5px;color:var(--ink-3)}
 .dlegend span{display:flex;align-items:center;gap:8px}
 .dlegend i{width:12px;height:12px;border-radius:4px;display:block;border:1.5px solid}
+.dlegend i.dashed{border:0;height:0;width:18px;border-top:1.6px dashed #9aa0a6;border-radius:0}
+
+/* three ways in */
+.chains{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.chain{padding:18px 20px 20px;border-right:1px solid var(--outline-2)}
+.chain:last-child{border-right:0}
+.chain>b{display:block;font-size:14px;font-weight:500;color:var(--ink)}
+.chain .trig{display:block;font-size:12px;color:var(--ink-3);margin-top:2px}
+.chain ol{margin:14px 0 0;padding:0;list-style:none;counter-reset:c}
+.chain li{position:relative;padding:0 0 14px 26px;font-size:13px;line-height:1.55;color:var(--ink-2);counter-increment:c}
+.chain li:last-child{padding-bottom:0}
+.chain li::before{content:counter(c);position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;background:var(--surf-2);color:var(--ink-3);font-size:11px;display:grid;place-items:center}
+.chain li:not(:last-child)::after{content:"";position:absolute;left:9px;top:22px;bottom:4px;width:1px;background:var(--outline-2)}
+
+/* message routing branches */
+.branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;padding:18px 20px 4px}
+.branch{border:1px solid var(--outline-2);border-radius:var(--r-s,12px);padding:14px 16px;border-left-width:3px}
+.branch.direct{border-left-color:#1a6b3c}
+.branch.lead{border-left-color:#2f4a7a}
+.branch.none{border-left-color:#8a5a00}
+.branch .bw{font-size:13.5px;font-weight:500;color:var(--ink)}
+.branch p{margin:6px 0 10px;font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+.branch .mono{font-size:11.5px;color:var(--ink-3);background:var(--surf-2);padding:2px 7px;border-radius:5px}
+
+/* prose blocks in the side stack */
+.arch-prose{font-size:13.5px;color:var(--ink-2);line-height:1.6}
+.arch-prose b{display:block;color:var(--ink);font-weight:500;margin-bottom:6px}
+
+/* limits, value plus the file that enforces it */
+.kv.limits{grid-template-columns:1fr auto;gap:12px 16px;font-size:13px}
+.kv.limits dd{text-align:right}
+.kv.limits dd .mono{display:block;font-size:11px;color:var(--ink-3);margin-top:1px}
+
+@media (max-width:900px){.chains{grid-template-columns:1fr}.chain{border-right:0;border-bottom:1px solid var(--outline-2)}.chain:last-child{border-bottom:0}}
 
 /* ============ chat builder ============ */
 /* ============ chat: welcome composition ============ */
@@ -547,16 +584,24 @@ tbody tr:hover{background:var(--surf-1)}
 
 @media (max-width:1020px){
   .app{grid-template-columns:1fr}
-  .side{position:static;height:auto;flex-direction:row;align-items:center;gap:12px;padding:10px 14px;overflow-x:auto}
-  .side .nav{flex-direction:row}.side .nav .lbl,.upsell{display:none}
-  .side-foot{margin:0 0 0 auto}.who span,.who b{display:none}
+  /* Two rows: brand and account on top, every nav item on its own row below.
+     A single scrolling row hid five of the seven destinations off-screen. */
+  .side{position:static;height:auto;display:grid;grid-template-columns:1fr auto;
+        grid-template-areas:"logo user" "nav nav";align-items:center;gap:8px 12px;
+        padding:10px 12px;overflow:visible}
+  .side .logo{grid-area:logo;padding:0}
+  .side .side-foot{grid-area:user;margin:0}
+  .side .nav{grid-area:nav;flex-direction:row;justify-content:space-between;gap:2px}
+  .side .nav .lbl,.side .nav .nav-t,.upsell{display:none}
+  .side .nav a{padding:9px 10px;justify-content:center;flex:1 1 0}
+  .side .nav a[aria-current]{box-shadow:inset 0 -2px 0 #fff}
+  /* .who .who-text span is more specific than .who span, so target the box */
+  .side .who .who-text{display:none}
+  .side .who{padding:4px 6px;gap:8px}
   .metrics{grid-template-columns:repeat(2,1fr)}
   .cols,.form-grid,.row2{grid-template-columns:1fr}
   .app>div:last-child>.wrap{border-radius:0;border-left:0}
   .wrap,.topbar{padding-left:16px;padding-right:16px}
-  /* the rail becomes a single scrolling row, so labels must not wrap */
-  .side .nav button,.side .nav a{white-space:nowrap}
-  .side{gap:10px}
   /* wide tables scroll sideways instead of being clipped by the card */
   .card:has(table){overflow-x:auto}
   .card table{min-width:760px}
@@ -568,6 +613,7 @@ tbody tr:hover{background:var(--surf-1)}
 /* ---- sign in */
 .login-wrap{min-height:100vh;display:grid;place-items:center;background:var(--bg,#f6f7f9);padding:24px}
 .login-card{width:min(420px,100%);background:#fff;border:1px solid var(--line,#e3e6ea);border-radius:14px;padding:32px;display:grid;gap:14px;box-shadow:0 8px 30px rgba(20,30,50,.06)}
+.login-split .login-card{align-content:center}
 .login-logo{display:flex;align-items:center;gap:10px;font-size:16px}
 .login-logo .mark{width:30px;height:30px;border-radius:9px;background:var(--rail,#1b2434);color:#fff;display:grid;place-items:center;font-weight:700}
 .login-card h1{margin:6px 0 0;font-size:24px}
@@ -641,7 +687,7 @@ body{background:var(--surf-1)}
 .search-pill{display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 10px 0 12px;border-radius:999px;border:1px solid var(--outline-2);background:var(--surf-1);color:var(--ink-3);font-size:13px;min-width:230px;transition:border-color .15s,background .15s,box-shadow .15s,color .15s}
 .search-pill:hover{background:var(--surf);border-color:var(--outline);color:var(--ink-2);box-shadow:var(--sh-1)}
 .search-pill kbd{margin-left:auto;font-family:var(--sans);font-size:11px;color:var(--ink-3);background:var(--surf);border:1px solid var(--outline-2);border-radius:5px;padding:1px 6px;line-height:1.5}
-.notif-dot{position:absolute;top:4px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--err);color:#fff;font-size:9.5px;font-weight:600;line-height:16px;text-align:center;box-shadow:0 0 0 2px var(--surf)}
+.notif-dot{position:absolute;top:-2px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--err);color:#fff;font-size:9.5px;font-weight:600;line-height:16px;text-align:center;box-shadow:0 0 0 2px var(--surf)}
 .icon-btn{border-radius:999px}
 
 /* --- type */
@@ -774,6 +820,10 @@ tbody td{padding:13px 20px}
 .swatches button[aria-checked="true"]{border-color:#fff;box-shadow:0 0 0 2px var(--ink)}
 .feed-body{font-size:13px;color:var(--ink-2);margin-top:3px;line-height:1.55;min-width:0;overflow-wrap:anywhere}
 .feed-body p{margin:0 0 6px}.feed-body p:last-child{margin:0}
+.feed-body b{display:inline;font-weight:600;font-size:inherit}
+.mdh{display:inline-block;margin-top:6px}
+.mdb{display:inline-block;padding-left:14px;text-indent:-14px}
+.mdb::before{content:"• ";color:var(--ink-3)}
 .feed-body ul{margin:4px 0 6px;padding-left:18px}
 .feed-body code{font-family:var(--mono);font-size:12px;background:var(--surf-2);padding:1px 4px;border-radius:4px}
 .feed-body.folded{max-height:6.2em;overflow:hidden;position:relative}
@@ -781,8 +831,21 @@ tbody td{padding:13px 20px}
 .feed li:has(.unread) .feed-body.folded::after{background:linear-gradient(to bottom,transparent,#f6f8fc)}
 .a-txt p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .result{padding:16px 20px;border-top:1px solid var(--outline-2);font-size:13.5px;line-height:1.6;color:var(--ink)}
-.result b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:8px}
+/* Only the panel heading is a block label. Bold inside a run's own output
+   must stay inline, or every **word** the model emits becomes a heading. */
+.result .rlabel{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:8px}
+.result b{font-weight:600;color:var(--ink)}
 .result p{margin:0 0 8px}.result p:last-child{margin:0}
 .result ul{margin:4px 0 8px;padding-left:18px}
 .result code{font-family:var(--mono);font-size:12.5px;background:var(--surf-2);padding:1px 5px;border-radius:4px}
-.result.failed{background:var(--err-bg)}.result.failed b{color:var(--err)}.result.failed p{color:var(--err)}
+.result.failed{background:var(--err-bg)}.result.failed .rlabel{color:var(--err)}.result.failed p{color:var(--err)}
+
+
+/* ============ backend unreachable ============ */
+.offline{max-width:520px;margin:14vh auto 0;text-align:center;display:grid;justify-items:center;gap:10px}
+.offline .oico{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--err-bg);color:var(--err)}
+.offline h1{margin:6px 0 0;font-size:22px;font-weight:500;letter-spacing:-.01em}
+.offline p{margin:0;font-size:14px;color:var(--ink-2);line-height:1.6;max-width:44ch}
+.offline .osub{color:var(--ink-3);font-size:13px}
+.offline pre{margin:6px 0 4px;font-family:var(--mono);font-size:12.5px;background:var(--surf-2);color:var(--ink-2);padding:9px 14px;border-radius:var(--r-sm);border:1px solid var(--outline-2)}
+.offline .btn{margin-top:6px}

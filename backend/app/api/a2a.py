@@ -27,15 +27,15 @@ def _bearer(header: str | None) -> str | None:
 
 
 async def _agent(session: AsyncSession, agent_id: int) -> Agent:
-    """404 whether A2A is off, the agent is gone, or the id never existed.
+    """404 whether A2A is off, the agent has it off, it is gone, or never existed.
 
     The spec is explicit that a server must not reveal the existence of a
-    resource the caller cannot reach, so all three answer the same way.
+    resource the caller cannot reach, so all four answer the same way.
     """
     if not settings.A2A_ENABLED:
         raise NotFoundException("No such agent")
     agent = await session.get(Agent, agent_id)
-    if agent is None:
+    if agent is None or not agent.a2a_enabled:
         raise NotFoundException("No such agent")
     return agent
 

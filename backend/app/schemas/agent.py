@@ -30,6 +30,8 @@ class AgentCreate(BaseModel):
     model: str = "nemotron-3-super"
     tools: list[ToolGrant] = Field(default_factory=list)
     schedule: ScheduleIn | None = None
+    # Let other agents call this one over A2A. Still needs A2A_ENABLED on the server.
+    a2a_enabled: bool = False
 
 
 class AgentUpdate(BaseModel):
@@ -40,6 +42,7 @@ class AgentUpdate(BaseModel):
     model: str | None = None
     tools: list[ToolGrant] | None = None
     schedule: ScheduleIn | None = None
+    a2a_enabled: bool | None = None
 
 
 class AgentOut(BaseModel):
@@ -50,6 +53,7 @@ class AgentOut(BaseModel):
     user_prompt: str
     model: str
     is_running: bool
+    a2a_enabled: bool = False
     created_at: datetime
     tools: list[ToolGrant] = Field(default_factory=list)
     schedule: ScheduleOut | None = None
@@ -94,9 +98,15 @@ class JobRunOut(BaseModel):
 
 
 class A2AOut(BaseModel):
-    """How another agent reaches this one. `token` is a bearer credential."""
+    """How another agent reaches this one. `token` is a bearer credential.
+
+    `enabled` is the effective answer: the server switch and the agent's own
+    switch both on. The two parts are given too, so the UI can say which is off.
+    """
 
     enabled: bool
+    server_enabled: bool
+    agent_enabled: bool
     card_url: str
     endpoint_url: str
     token: str

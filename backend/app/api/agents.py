@@ -59,6 +59,7 @@ async def _shape(session: AsyncSession, agent: Agent) -> AgentOut:
         user_prompt=agent.user_prompt,
         model=agent.model,
         is_running=agent.is_running,
+        a2a_enabled=agent.a2a_enabled,
         created_at=agent.created_at,
         tools=[ToolGrant(tool_name=t.tool_name, can_write=t.can_write) for t in tools],
         schedule=schedule_out,
@@ -75,7 +76,9 @@ def _deployment(agent: Agent, runs: list[jenkins.JobRun]) -> DeploymentOut:
         enabled=settings.JENKINS_ENABLED,
         jobs=[JobRunOut(**vars(r)) for r in runs],
         a2a=A2AOut(
-            enabled=settings.A2A_ENABLED,
+            enabled=settings.A2A_ENABLED and agent.a2a_enabled,
+            server_enabled=settings.A2A_ENABLED,
+            agent_enabled=agent.a2a_enabled,
             card_url=a2a_card.card_url(agent.id),
             endpoint_url=a2a_card.endpoint_url(agent.id),
             token=a2a_tokens.issue(agent.id),
@@ -178,6 +181,7 @@ async def create_agent(
         system_prompt=payload.system_prompt,
         user_prompt=payload.user_prompt,
         model=payload.model,
+        a2a_enabled=payload.a2a_enabled,
     )
     session.add(agent)
     await session.commit()

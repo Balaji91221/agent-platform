@@ -176,7 +176,7 @@ sequenceDiagram
     participant X as Executor (in-process)
 
     P->>A: GET /a2a/agents/1/.well-known/agent-card.json
-    alt A2A_ENABLED false, or no such agent
+    alt A2A_ENABLED false, agent has A2A off, or no such agent
         A-->>P: 404
     else
         A->>D: agent row + tool grants

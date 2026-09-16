@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
+import { A2ACard } from './a2a-card';
 import { ScheduleCard } from './schedule-card';
 import { ToolsCard } from './tools-card';
 import { Loaded, Problem } from '../states';
@@ -21,6 +22,8 @@ export type FormSeed = {
   model: string;
   tools: { tool_name: string; can_write: boolean }[];
   schedule: { cron: string; timezone: string; is_paused?: boolean } | null;
+  /** Reachable by other agents over A2A. Off unless switched on here. */
+  a2a_enabled: boolean;
 };
 
 export const DEFAULT_SEED: FormSeed = {
@@ -35,6 +38,7 @@ export const DEFAULT_SEED: FormSeed = {
   model: 'nemotron-3-super',
   tools: [],
   schedule: { cron: '0 9 * * *', timezone: 'Asia/Kolkata' },
+  a2a_enabled: false,
 };
 
 type Props = {
@@ -76,6 +80,7 @@ export function AgentForm({ seed, editingId }: Props) {
   const [at, setAt] = useState(preset ? preset.at : '09:00');
   const [tz, setTz] = useState(seed.schedule?.timezone ?? 'Asia/Kolkata');
   const [scheduled, setScheduled] = useState(seed.schedule !== null);
+  const [a2a, setA2a] = useState(seed.a2a_enabled);
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -101,6 +106,7 @@ export function AgentForm({ seed, editingId }: Props) {
       schedule: scheduled
         ? { cron, timezone: tz, is_paused: seed.schedule?.is_paused ?? false }
         : null,
+      a2a_enabled: a2a,
     };
     const result = editing ? await updateAgent(editingId, body) : await createAgent(body);
     setSaving(false);
@@ -229,6 +235,8 @@ export function AgentForm({ seed, editingId }: Props) {
             onTz={setTz}
             onToggle={() => setScheduled((s) => !s)}
           />
+
+          <A2ACard enabled={a2a} onToggle={() => setA2a((v) => !v)} />
         </div>
 
         <div className="stack" style={{ position: 'sticky', top: 78 }}>
@@ -246,6 +254,10 @@ export function AgentForm({ seed, editingId }: Props) {
             <div className="pv-row">
               <span>Write access</span>
               <b>{enabledTools.filter((t) => t.writes && writable[t.name]).length} tools</b>
+            </div>
+            <div className="pv-row">
+              <span>A2A</span>
+              <b>{a2a ? 'Other agents can call it' : 'Off'}</b>
             </div>
             <button
               className="btn"

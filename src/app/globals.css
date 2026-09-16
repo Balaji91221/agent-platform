@@ -416,7 +416,7 @@ tbody tr:hover{background:var(--surf-1)}
 .dlegend i.dashed{border:0;height:0;width:18px;border-top:1.6px dashed #9aa0a6;border-radius:0}
 
 /* three ways in */
-.chains{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.chains{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
 .chain{padding:18px 20px 20px;border-right:1px solid var(--outline-2)}
 .chain:last-child{border-right:0}
 .chain>b{display:block;font-size:14px;font-weight:500;color:var(--ink)}
@@ -446,6 +446,7 @@ tbody tr:hover{background:var(--surf-1)}
 .kv.limits dd{text-align:right}
 .kv.limits dd .mono{display:block;font-size:11px;color:var(--ink-3);margin-top:1px}
 
+@media (max-width:1200px){.chains{grid-template-columns:repeat(2,1fr)}.chain:nth-child(2){border-right:0}.chain:nth-child(-n+2){border-bottom:1px solid var(--outline-2)}}
 @media (max-width:900px){.chains{grid-template-columns:1fr}.chain{border-right:0;border-bottom:1px solid var(--outline-2)}.chain:last-child{border-bottom:0}}
 
 /* ============ chat builder ============ */

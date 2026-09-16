@@ -46,6 +46,11 @@ class Agent(Base, TimestampMixin):
     model: Mapped[str] = mapped_column(String(64), default="nemotron-3-super")
     # Plan NFR-4: the lock that stops the same agent running twice at once.
     is_running: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Per-agent A2A switch. Exposure needs this *and* the server-wide A2A_ENABLED,
+    # so one agent can be reachable by other agents without opening every agent.
+    a2a_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
 
 
 class AgentTool(Base):

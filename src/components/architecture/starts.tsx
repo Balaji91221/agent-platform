@@ -3,7 +3,7 @@ import { CardHead } from '../ui';
 
 type Chain = { title: string; trigger: string; steps: ReactNode[] };
 
-/** All three end at the same place: one job on the queue, agent already claimed. */
+/** All four claim the agent first. Three go through the queue; A2A runs in-process. */
 const CHAINS: Chain[] = [
   {
     title: 'You press Run now',
@@ -32,14 +32,23 @@ const CHAINS: Chain[] = [
       'Its answer goes back into the same thread, under its own name.',
     ],
   },
+  {
+    title: 'Another agent calls in',
+    trigger: 'over A2A, with the agent’s token',
+    steps: [
+      'The caller reads the public agent card, then sends a JSON-RPC SendMessage.',
+      'The API claims the agent with the same lock, or answers busy (-32004).',
+      'The run happens in-process while the caller waits, and comes back as a completed or failed task.',
+    ],
+  },
 ];
 
-export function ThreeWaysIn() {
+export function FourWaysIn() {
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <CardHead
-        title="Three ways a run starts"
-        blurb="Different triggers, one path afterwards — a job on the queue, with the agent already claimed so nothing can queue it twice"
+        title="Four ways a run starts"
+        blurb="Different triggers, one lock: the agent is claimed first so nothing can run it twice. A2A skips the queue because the caller is waiting"
       />
       <div className="chains">
         {CHAINS.map((c) => (

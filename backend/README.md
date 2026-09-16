@@ -174,11 +174,22 @@ taken by other local stacks.
 
 ## A2A (Agent2Agent)
 
-Every agent is also an A2A agent. A2A is the open protocol for one agent to
+Any agent can be an A2A agent. A2A is the open protocol for one agent to
 discover another and hand it work; this backend implements the **v1.0**
 specification's card plus synchronous `SendMessage` subset. An outside agent
 reads the card to learn what an agent does and which tools it holds, then
 sends a message and receives the run's output as a terminal task.
+
+Exposure is two switches, both off by default:
+
+| Switch | Where | Scope |
+|---|---|---|
+| `A2A_ENABLED` | backend `.env` | the whole server |
+| `a2a_enabled` | per agent, "Agent-to-agent" card on the create/edit form | that one agent |
+
+An agent is published only when both are on. `GET /agents/{id}/deployment`
+returns `a2a.enabled` (the effective answer) plus `server_enabled` and
+`agent_enabled` so the Deployment card can say which one is off.
 
 ### Endpoints
 
@@ -227,7 +238,8 @@ curl -s -X POST localhost:8000/a2a/agents/1 \
 
 What happens, in order:
 
-1. `A2A_ENABLED` and the agent id are checked; either failing is a 404.
+1. `A2A_ENABLED`, the agent id, and the agent's own `a2a_enabled` are checked;
+   any of them failing is a 404.
 2. The bearer token is verified in constant time.
 3. The text parts of the message are joined into the prompt. File and data
    parts are dropped: the card declares text only.
@@ -328,7 +340,8 @@ Two defects that verification caught, both fixed:
 
 | Setting | Default | Effect |
 |---|---|---|
-| `A2A_ENABLED` | `false` | Master switch. Off means every A2A route is 404 |
+| `A2A_ENABLED` | `false` | Server switch. Off means every A2A route is 404 |
+| `a2a_enabled` (per agent) | `false` | Agent switch, set on the form or by `PATCH /agents/{id}`. Off means that agent's routes are 404 |
 | `A2A_PUBLIC_URL` | `http://localhost:8000` | Absolute origin written into the card's interface URL |
 | `A2A_PROTOCOL_VERSION` | `1.0` | Value of `protocolVersion` on the card |
 | `CREDENTIAL_KEY` | dev fallback | Root of every agent token; rotate to revoke all |

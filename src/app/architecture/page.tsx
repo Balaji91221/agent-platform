@@ -3,7 +3,7 @@ import { SystemDiagram } from '@/components/architecture/diagram';
 import { DownloadDiagramButton } from '@/components/architecture/download-button';
 import { LimitsCard } from '@/components/architecture/limits-card';
 import { RoutingCard } from '@/components/architecture/routing';
-import { ThreeWaysIn } from '@/components/architecture/starts';
+import { FourWaysIn } from '@/components/architecture/starts';
 import { COMPONENTS, DELEGATION, PartsTable } from '@/components/architecture/tables';
 import { CardHead, PageHead } from '@/components/ui';
 
@@ -75,7 +75,7 @@ export default function ArchitecturePage() {
         <SystemDiagram />
       </div>
 
-      <ThreeWaysIn />
+      <FourWaysIn />
 
       <div className="cols" style={{ marginTop: 16 }}>
         <div className="card">

@@ -87,6 +87,18 @@ export const COMPONENTS: PartRow[] = [
     where: 'app/security/ownership.py',
     job: 'Adds the user filter in the database layer. Someone else’s id returns 404, not 403, so ids cannot be probed.',
   },
+  {
+    part: 'A2A endpoint',
+    on: 'per agent, off by default',
+    where: 'app/a2a/',
+    job: 'Publishes every agent to the Agent2Agent protocol (v1.0): a public card at /a2a/agents/{id}/.well-known/agent-card.json and a JSON-RPC SendMessage that runs the agent and returns a task. Guarded by a per-agent bearer token; 404 while A2A_ENABLED is false.',
+  },
+  {
+    part: 'Jenkins client',
+    on: 'three jobs, off by default',
+    where: 'app/cicd/jenkins.py',
+    job: 'Fires agent-create, agent-deploy and agent-delete, each writing one host entry. Jenkins being down is an ordinary status on the Deployment card, never a reason an agent cannot be created or deleted.',
+  },
 ];
 
 export const DELEGATION: PartRow[] = [

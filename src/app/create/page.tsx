@@ -34,6 +34,7 @@ function takeDraft(): FormSeed | null {
       model: d.model,
       tools: d.tools.map((t) => ({ tool_name: t, can_write: false })),
       schedule: { cron: d.cron, timezone: d.timezone },
+      a2a_enabled: false,
     };
   } catch {
     return null;
@@ -81,6 +82,7 @@ function EditExisting({ id }: { id: number }) {
                   is_paused: a.schedule.is_paused,
                 }
               : null,
+            a2a_enabled: a.a2a_enabled,
           }}
         />
       )}

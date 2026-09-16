@@ -55,6 +55,7 @@ export type AgentInput = {
   model?: string;
   tools?: ToolGrant[];
   schedule?: { cron: string; timezone: string; is_paused?: boolean } | null;
+  a2a_enabled?: boolean;
 };
 
 export const listAgents = (signal?: AbortSignal): Promise<Result<Agent[]>> =>

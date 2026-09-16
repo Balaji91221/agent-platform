@@ -69,11 +69,19 @@ function JobRow({ run }: { run: JobRun }) {
 function A2ASection({ a2a }: { a2a: A2A }) {
   const [shown, setShown] = useState(false);
 
-  if (!a2a.enabled) {
+  if (!a2a.agent_enabled) {
     return (
       <p className="hint" style={{ margin: '12px 0 0' }}>
-        A2A is off. Set <span className="mono">A2A_ENABLED=true</span> to let other agents call
-        this one.
+        A2A is off for this agent. Switch on &ldquo;Agent-to-agent&rdquo; in Edit to let other
+        agents call it.
+      </p>
+    );
+  }
+  if (!a2a.server_enabled) {
+    return (
+      <p className="hint" style={{ margin: '12px 0 0' }}>
+        This agent is set to accept A2A calls, but the server has it off. Set{' '}
+        <span className="mono">A2A_ENABLED=true</span> in the backend to publish it.
       </p>
     );
   }

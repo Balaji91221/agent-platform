@@ -46,7 +46,7 @@ def one_attempt():
 
 
 async def _agent(client, **extra) -> dict:
-    body = {"name": "Daily Digest", "model": "claude-sonnet-5", **extra}
+    body = {"name": "Daily Digest", "model": "claude-sonnet-5", "a2a_enabled": True, **extra}
     r = await client.post("/agents", json=body)
     assert r.status_code == 201, r.text
     return r.json()
@@ -303,7 +303,7 @@ async def test_a_bearer_token_opens_an_agent_regardless_of_who_owns_it(client, s
     session.add(other)
     await session.commit()
     await session.refresh(other)
-    theirs = Agent(user_id=other.id, name="Theirs", model="claude-sonnet-5")
+    theirs = Agent(user_id=other.id, name="Theirs", model="claude-sonnet-5", a2a_enabled=True)
     session.add(theirs)
     await session.commit()
     await session.refresh(theirs)
@@ -315,6 +315,40 @@ async def test_a_bearer_token_opens_an_agent_regardless_of_who_owns_it(client, s
 
 
 # --------------------------------------------------------------------------- A2A existence
+
+
+async def test_an_agent_with_a2a_off_is_404_even_with_the_server_switch_on(client, a2a_on):
+    agent = await _agent(client, a2a_enabled=False)
+    assert agent["a2a_enabled"] is False
+    assert (
+        await client.get(f"/a2a/agents/{agent['id']}/.well-known/agent-card.json")
+    ).status_code == 404
+    assert (await _rpc(client, agent["id"], _send("hi"))).status_code == 404
+
+    dep = (await client.get(f"/agents/{agent['id']}/deployment")).json()["a2a"]
+    assert dep == {**dep, "enabled": False, "server_enabled": True, "agent_enabled": False}
+
+
+async def test_the_agent_switch_can_be_flipped_by_patch(client, a2a_on):
+    agent = await _agent(client, a2a_enabled=False)
+    url = f"/a2a/agents/{agent['id']}/.well-known/agent-card.json"
+    assert (await client.get(url)).status_code == 404
+
+    r = await client.patch(f"/agents/{agent['id']}", json={"a2a_enabled": True})
+    assert r.status_code == 200 and r.json()["a2a_enabled"] is True
+    assert (await client.get(url)).status_code == 200
+
+    # A patch that does not mention the switch leaves it alone.
+    await client.patch(f"/agents/{agent['id']}", json={"name": "Renamed"})
+    assert (await client.get(url)).status_code == 200
+
+    await client.patch(f"/agents/{agent['id']}", json={"a2a_enabled": False})
+    assert (await client.get(url)).status_code == 404
+
+
+async def test_a2a_defaults_to_off_for_a_new_agent(client, a2a_on):
+    r = await client.post("/agents", json={"name": "Plain", "model": "claude-sonnet-5"})
+    assert r.json()["a2a_enabled"] is False
 
 
 @pytest.mark.parametrize("agent_id", [0, -1, 999_999])

@@ -26,7 +26,7 @@ def a2a_on():
 
 
 async def _agent(client, **extra) -> dict:
-    body = {"name": "Daily Digest", "model": "claude-sonnet-5", **extra}
+    body = {"name": "Daily Digest", "model": "claude-sonnet-5", "a2a_enabled": True, **extra}
     r = await client.post("/agents", json=body)
     assert r.status_code == 201, r.text
     return r.json()

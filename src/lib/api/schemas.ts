@@ -29,6 +29,7 @@ export const agentSchema = z.object({
   user_prompt: z.string(),
   model: z.string(),
   is_running: z.boolean(),
+  a2a_enabled: z.boolean().default(false),
   created_at: z.string(),
   tools: z.array(toolGrantSchema).default([]),
   schedule: scheduleSchema.nullable().optional(),
@@ -264,7 +265,10 @@ export type JobStatus = JobRun['status'];
 
 /** How another agent reaches this one. `token` is a bearer credential. */
 export const a2aSchema = z.object({
+  /** Effective: the server switch and the agent's own switch are both on. */
   enabled: z.boolean(),
+  server_enabled: z.boolean(),
+  agent_enabled: z.boolean(),
   card_url: z.string(),
   endpoint_url: z.string(),
   token: z.string(),

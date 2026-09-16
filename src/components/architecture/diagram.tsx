@@ -30,7 +30,9 @@ const H = 54;
 
 const BOXES: Box[] = [
   { x: 390, y: 24, title: 'Browser', sub: 'Form · chat · team thread', tone: 'ext' },
+  { x: 680, y: 24, title: 'Outside agent', sub: 'A2A card · SendMessage', tone: 'ext' },
 
+  { x: 100, y: 120, title: 'Jenkins', sub: 'create · deploy · delete jobs', tone: 'ext' },
   { x: 390, y: 120, title: 'Web API', sub: 'FastAPI, every screen calls it', tone: 'app' },
   { x: 680, y: 120, title: 'PostgreSQL', sub: 'Agents · runs · team · tokens', tone: 'store' },
   { x: 100, y: 200, title: 'Team router', sub: 'Lead decides who takes it', tone: 'app' },
@@ -54,12 +56,14 @@ type Edge = { d: string; text?: string; at?: [number, number]; dashed?: boolean 
 
 const EDGES: Edge[] = [
   { d: 'M490,78 V120' },
+  { d: 'M780,78 V100 H540 V120', text: 'A2A, bearer token', at: [552, 92] },
+  { d: 'M390,133 H300', text: 'host entry', at: [318, 118] },
 
   { d: 'M590,147 H680', text: 'reads / writes', at: [592, 129] },
   { d: 'M780,174 V200', text: 'what is due', at: [786, 178], dashed: true },
 
   { d: 'M490,174 V280', text: 'Run now', at: [497, 210] },
-  { d: 'M490,187 H200 V200', text: 'team message', at: [246, 168] },
+  { d: 'M490,187 H200 V200', text: 'team message', at: [246, 178] },
 
   { d: 'M200,254 V307 H390', text: 'delegates', at: [252, 288] },
   { d: 'M780,254 V307 H590', text: 'due now', at: [640, 288] },
@@ -74,7 +78,7 @@ const EDGES: Edge[] = [
   { d: 'M490,510 V536', text: 'built-in name', at: [497, 512] },
   { d: 'M390,483 H200 V536', text: 'mcp: name', at: [212, 494] },
 
-  { d: 'M400,376 V366 H40 V51 H390', text: 'live log, under 2s', at: [55, 150], dashed: true },
+  { d: 'M400,376 V366 H40 V51 H390', text: 'live log, under 2s', at: [55, 98], dashed: true },
   { d: 'M600,376 V352 H930 V147 H880', text: 'run log', at: [896, 250], dashed: true },
   { d: 'M590,403 H920 V563 H880', text: 'outcome', at: [700, 385] },
 

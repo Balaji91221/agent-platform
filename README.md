@@ -96,3 +96,7 @@ The API manages configuration and requests. Background processes handle schedule
 ## Current boundaries
 
 Jenkins deployment is an integration hook; its deployment step is a placeholder. A2A supports discovery and synchronous text `SendMessage`, not every protocol capability. Consult the [backend guide](backend/README.md) and [flow documentation](backend/docs/FLOW.md) before enabling external integrations.
+
+---
+
+Explore more of my work: [latest open-source tools](https://github.com/Balaji91221#latest-open-source-tools) · [recent projects](https://github.com/Balaji91221#recent-work).
